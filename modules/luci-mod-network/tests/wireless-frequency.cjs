@@ -1,0 +1,30 @@
+// Exercise the actual frequency widget's write boundary without a router.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const source = fs.readFileSync(path.join(__dirname, '../htdocs/luci-static/resources/view/network/wireless.js'), 'utf8');
+const widget = source.slice(source.indexOf('var CBIWifiFrequencyValue ='), source.indexOf('var CBIWifiTxPowerValue ='));
+let writes = [];
+const context = { form: { Value: { extend: x => x } }, rpc: { declare: () => {} },
+  _: x => x, uci: { set: (...args) => writes.push(args), get: () => 'EHT160' } };
+vm.createContext(context);
+vm.runInContext(widget, context);
+const frequency = context.CBIWifiFrequencyValue;
+frequency.useBandOption = true;
+assert.throws(() => frequency.write('radio', ['', '', '']), /frequency|频率/i);
+assert.equal(writes.length, 0, 'failed capability lookup must not erase saved radio options');
+frequency.write('radio', ['EHT160', '5g', '36']);
+assert.deepEqual(writes.map(x => x.slice(2)), [['htmode', 'EHT160'], ['band', '5g'], ['channel', '36']]);
+console.log('PASS: invalid frequency cannot erase UCI; valid selection is saved');
+writes=[];
+frequency.frequencyUnavailable=true;
+frequency.write('radio', ['', '', '']);
+assert.equal(writes.length,0,'unavailable capabilities preserve saved settings');
+frequency.frequencyUnavailable=false;
+assert.throws(()=>frequency.write('radio',['','5g','36']));
+frequency.map={findElement:()=>({querySelector:()=>({value:''})})};
+frequency.cbid=()=>'';
+frequency.write('radio',['','2g','6']);
+assert.equal(writes.length,3,'explicit legacy mode is allowed');
+console.log('PASS unavailable capability preservation and explicit legacy selection');

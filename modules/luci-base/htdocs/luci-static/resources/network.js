@@ -350,6 +350,186 @@ function maskToPrefix(mask, v6) {
 	return bits;
 }
 
+function isString(v)
+{
+	return typeof(v) === 'string' && v !== '';
+}
+
+function resolveVLANChain(ifname, bridges, mapping)
+{
+	while (!mapping[ifname]) {
+		const m = ifname.match(/^(.+)\.([^.]+)$/);
+
+		if (!m)
+			break;
+
+		if (bridges[m[1]]) {
+			if (bridges[m[1]].vlan_filtering)
+				mapping[ifname] = bridges[m[1]].vlans[m[2]];
+			else
+				mapping[ifname] = bridges[m[1]].ports;
+		}
+		else if (/^[0-9]{1,4}$/.test(m[2]) && m[2] <= 4095) {
+			mapping[ifname] = [ m[1] ];
+		}
+		else {
+			break;
+		}
+
+		ifname = m[1];
+	}
+}
+
+function buildVLANMappings(mapping)
+{
+	const bridge_vlans = uci.sections('network', 'bridge-vlan');
+	const vlan_devices = uci.sections('network', 'device');
+	const interfaces = uci.sections('network', 'interface');
+	const bridges = Object.create(null);
+
+	/* find bridge VLANs */
+	for (let i = 0, s; (s = bridge_vlans[i]) != null; i++) {
+		if (!isString(s.device) || !/^[0-9]{1,4}$/.test(s.vlan) || +s.vlan > 4095)
+			continue;
+
+		const aliases = L.toArray(s.alias);
+		const ports = L.toArray(s.ports);
+		const br = bridges[s.device] = (bridges[s.device] || { ports: [], vlans: Object.create(null), vlan_filtering: true });
+
+		br.vlans[s.vlan] = [];
+
+		for (let p of ports) {
+			const port = p.replace(/:[ut*]+$/, '');
+
+			if (br.ports.indexOf(port) === -1)
+				br.ports.push(port);
+
+			br.vlans[s.vlan].push(port);
+		}
+
+		for (let a of aliases)
+			if (a != s.vlan)
+				br.vlans[a] = br.vlans[s.vlan];
+	}
+
+	/* find bridges, VLAN devices */
+	for (let i = 0, s; (s = vlan_devices[i]) != null; i++) {
+		if (s.type == 'bridge') {
+			if (!isString(s.name))
+				continue;
+
+			const ports = L.toArray(s.ports);
+			const br = bridges[s.name] || (bridges[s.name] = { ports: [], vlans: Object.create(null), vlan_filtering: false });
+
+			if (s.vlan_filtering == '0')
+				br.vlan_filtering = false;
+			else if (s.vlan_filtering == '1')
+				br.vlan_filtering = true;
+
+			for (let p of ports)
+				if (br.ports.indexOf(p) === -1)
+					br.ports.push(p);
+
+			mapping[s.name] = br.ports;
+		}
+		else if (s.type == '8021q' || s.type == '8021ad') {
+			if (!isString(s.name) || !isString(s.vid) || !isString(s.ifname))
+				continue;
+
+			/* parent device is a bridge */
+			if (bridges[s.ifname]) {
+				/* parent bridge is VLAN enabled, device refers to VLAN ports */
+				if (bridges[s.ifname].vlan_filtering)
+					mapping[s.name] = bridges[s.ifname].vlans[s.vid];
+
+				/* parent bridge is not VLAN enabled, device refers to all bridge ports */
+				else
+					mapping[s.name] = bridges[s.ifname].ports;
+			}
+
+			/* parent is a simple netdev */
+			else {
+				mapping[s.name] = [ s.ifname ];
+			}
+
+			resolveVLANChain(s.ifname, bridges, mapping);
+		}
+	}
+
+	/* resolve VLAN tagged interfaces in bridge ports */
+	for (let brname in bridges) {
+		for (let bp of bridges[brname].ports)
+			resolveVLANChain(bp, bridges, mapping);
+
+		for (let vid in bridges[brname].vlans)
+			for (let v of bridges[brname].vlans[vid])
+				resolveVLANChain(v, bridges, mapping);
+	}
+
+	/* find implicit VLAN devices */
+	for (let i = 0, s; (s = interfaces[i]) != null; i++) {
+		if (!isString(s.device))
+			continue;
+
+		resolveVLANChain(s.device, bridges, mapping);
+	}
+}
+
+function resolveVLANPorts(ifname, mapping, seen)
+{
+	const ports = [];
+
+	if (!seen)
+		seen = Object.create(null);
+
+	if (mapping[ifname]) {
+		for (let m of mapping[ifname]) {
+			if (!seen[m]) {
+				seen[m] = true;
+				ports.push.apply(ports, resolveVLANPorts(m, mapping, seen));
+			}
+		}
+	}
+	else {
+		ports.push(ifname);
+	}
+
+	return ports.sort(L.naturalCompare);
+}
+
+function physicalPortNames(device, mapping) {
+	const seen = new Set();
+	while (isString(device) && device.startsWith('@')) {
+		if (seen.has(device) || uci.get('network', device.slice(1), 'disabled') == '1')
+			return [];
+		seen.add(device);
+		device = uci.get('network', device.slice(1), 'device');
+	}
+
+	return isString(device) ? resolveVLANPorts(device, mapping) : [];
+}
+
+function air6PortLabels(mapping) {
+	const labels = new Map([['lan', 'LAN1'], ['wan', 'LAN2']]);
+	const roles = new Map([['lan', new Set()], ['wan', new Set()]]);
+
+	for (const iface of uci.sections('network', 'interface')) {
+		const name = iface['.name'];
+		if (iface.disabled == '1' || !iface.device)
+			continue;
+
+		const role = /^(lan|wan)6?$/.test(name) ? name.slice(0, 3).toUpperCase() : name;
+		for (const port of physicalPortNames(iface.device, mapping))
+			roles.get(port)?.add(role);
+	}
+
+	for (const [port, names] of roles)
+		if (names.size)
+			labels.set(port, labels.get(port) + ' · ' + Array.from(names).sort(L.naturalCompare).join('/'));
+
+	return labels;
+}
+
 function initNetworkState(refresh) {
 	if (_state == null || refresh) {
 		const hasWifi = L.hasSystemFeature('wifi');
@@ -370,8 +550,12 @@ function initNetworkState(refresh) {
 			const s = {
 				isTunnel: {}, isBridge: {}, isSwitch: {}, isWifi: {},
 				ifaces: netifd_ifaces, radios: radios, hosts: hosts,
-				netdevs: {}, bridges: {}, switches: {}, hostapd: {}
+				netdevs: {}, bridges: {}, switches: {}, hostapd: {}, portMapping: Object.create(null)
 			};
+
+			buildVLANMappings(s.portMapping);
+			if (board_json.model?.id === 'softbank,air6')
+				s.portLabels = air6PortLabels(s.portMapping);
 
 			for (let name in luci_devs) {
 				const dev = luci_devs[name];
@@ -663,6 +847,11 @@ let Hosts, Network, Protocol, Device, WifiDevice, WifiNetwork, WifiVlan;
  * current configuration details and to manipulate settings.
  */
 Network = baseclass.extend(/** @lends LuCI.network.prototype */ {
+	/** Resolve a configured device or interface alias to its physical ports. */
+	getPhysicalPortNames(device) {
+		return physicalPortNames(device, _state.portMapping);
+	},
+
 	/**
 	 * Converts the given prefix size in bits to a netmask.
 	 *
@@ -3007,14 +3196,15 @@ Device = baseclass.extend(/** @lends LuCI.network.Device.prototype */ {
 	 * Get a short description string for the device.
 	 *
 	 * @returns {string}
-	 * Returns the device name for non-WiFi devices or a string containing
+	 * Returns the chassis label and configured networks when available, the
+	 * device name for other wired devices, or a string containing
 	 * the operation mode and SSID for WiFi devices.
 	 */
 	getShortName() {
 		if (this.wif != null)
 			return this.wif.getShortName();
 
-		return this.device;
+		return _state.portLabels?.get(this.device) || this.device;
 	},
 
 	/**
@@ -3032,7 +3222,7 @@ Device = baseclass.extend(/** @lends LuCI.network.Device.prototype */ {
 				this.wif.getActiveSSID() || this.wif.getActiveBSSID() || this.wif.getID() || '?');
 		}
 
-		return '%s: "%s"'.format(this.getTypeI18n(), this.getName());
+		return '%s: "%s"'.format(this.getTypeI18n(), this.getShortName());
 	},
 
 	/**

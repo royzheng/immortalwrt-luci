@@ -93,6 +93,10 @@
 				"/usr/sbin/iptables --line-numbers -w -nvxL -t *": [ "exec" ],
 				"/usr/sbin/ip6tables --line-numbers -w -nvxL -t *": [ "exec" ],
 				"/usr/sbin/ip6tables": [ "list" ],
+				"/usr/sbin/iptables-legacy-save": [ "list", "exec" ],
+				"/usr/sbin/ip6tables-legacy-save": [ "list", "exec" ],
+				"/usr/sbin/iptables-save --version": [ "exec" ],
+				"/usr/sbin/ip6tables-save --version": [ "exec" ],
 				"/usr/sbin/iptables-save": [ "exec" ],
 				"/usr/sbin/ip6tables-save": [ "exec" ]
 			},

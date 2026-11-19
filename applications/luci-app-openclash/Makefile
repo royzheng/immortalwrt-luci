@@ -13,7 +13,7 @@ define Package/$(PKG_NAME)
 	SUBMENU:=3. Applications
 	TITLE:=LuCI support for clash
 	PKGARCH:=all
-	DEPENDS:=+luci-compat +dnsmasq-full +bash +curl +ca-bundle +ip-full +ruby \
+	DEPENDS:=+mihomo +luci-compat +dnsmasq-full +bash +curl +ca-bundle +ip-full +ruby \
 		+ruby-yaml +kmod-inet-diag +kmod-nft-tproxy +kmod-tun +unzip
 	MAINTAINER:=vernesong
 endef
@@ -41,6 +41,8 @@ define Build/Compile
 endef
 
 define Package/$(PKG_NAME)/conffiles
+/etc/config/openclash
+/etc/openclash/
 endef
 
 define Package/$(PKG_NAME)/preinst

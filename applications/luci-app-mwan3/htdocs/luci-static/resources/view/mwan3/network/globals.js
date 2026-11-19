@@ -11,10 +11,14 @@ return view.extend({
 
 		s = m.section(form.NamedSection, 'globals', 'globals');
 
+		o = s.option(form.Flag, 'enabled', _('Enable MultiWAN'), _('Disabled by default. Verify uplinks before enabling policy routing.'));
+		o.default = '0';
+		o.rmempty = false;
+
 		o = s.option(form.Value, 'mmx_mask', _('Firewall mask'),
 			_('Enter value in hex, starting with <code>0x</code>'));
-		o.datatype = 'hex(4)';
-		o.default = '0x3F00';
+		o.datatype = 'hex(8)';
+		o.default = '0x003f0000';
 
 		o = s.option(form.Flag, 'logging', _('Logging'),
 			_('Enables global firewall logging'));

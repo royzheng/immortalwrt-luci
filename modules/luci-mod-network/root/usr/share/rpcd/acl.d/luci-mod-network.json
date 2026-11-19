@@ -4,6 +4,7 @@
 		"read": {
 			"cgi-io": [ "exec" ],
 			"file": {
+				"/usr/libexec/air6-wireless-status *": [ "exec" ],
 				"/etc/iproute2/rt_tables": [ "read" ],
 				"/proc/sys/net/ipv6/conf/*/mtu": [ "read" ],
 				"/proc/sys/net/ipv6/conf/*/hop_limit": [ "read" ],

@@ -20,195 +20,26 @@ const callNetworkDeviceStatus = rpc.declare({
 	expect: { '': {} }
 });
 
-function isString(v)
-{
-	return typeof(v) === 'string' && v !== '';
-}
-
-function resolveVLANChain(ifname, bridges, mapping)
-{
-	while (!mapping[ifname]) {
-		const m = ifname.match(/^(.+)\.([^.]+)$/);
-
-		if (!m)
-			break;
-
-		if (bridges[m[1]]) {
-			if (bridges[m[1]].vlan_filtering)
-				mapping[ifname] = bridges[m[1]].vlans[m[2]];
-			else
-				mapping[ifname] = bridges[m[1]].ports;
-		}
-		else if (/^[0-9]{1,4}$/.test(m[2]) && m[2] <= 4095) {
-			mapping[ifname] = [ m[1] ];
-		}
-		else {
-			break;
-		}
-
-		ifname = m[1];
-	}
-}
-
-function buildVLANMappings(mapping)
-{
-	const bridge_vlans = uci.sections('network', 'bridge-vlan');
-	const vlan_devices = uci.sections('network', 'device');
-	const interfaces = uci.sections('network', 'interface');
-	const bridges = {};
-
-	/* find bridge VLANs */
-	for (let i = 0, s; (s = bridge_vlans[i]) != null; i++) {
-		if (!isString(s.device) || !/^[0-9]{1,4}$/.test(s.vlan) || +s.vlan > 4095)
-			continue;
-
-		const aliases = L.toArray(s.alias);
-		const ports = L.toArray(s.ports);
-		const br = bridges[s.device] = (bridges[s.device] || { ports: [], vlans: {}, vlan_filtering: true });
-
-		br.vlans[s.vlan] = [];
-
-		for (let p of ports) {
-			const port = p.replace(/:[ut*]+$/, '');
-
-			if (br.ports.indexOf(port) === -1)
-				br.ports.push(port);
-
-			br.vlans[s.vlan].push(port);
-		}
-
-		for (let a of aliases)
-			if (a != s.vlan)
-				br.vlans[a] = br.vlans[s.vlan];
-	}
-
-	/* find bridges, VLAN devices */
-	for (let i = 0, s; (s = vlan_devices[i]) != null; i++) {
-		if (s.type == 'bridge') {
-			if (!isString(s.name))
-				continue;
-
-			const ports = L.toArray(s.ports);
-			const br = bridges[s.name] || (bridges[s.name] = { ports: [], vlans: {}, vlan_filtering: false });
-
-			if (s.vlan_filtering == '0')
-				br.vlan_filtering = false;
-			else if (s.vlan_filtering == '1')
-				br.vlan_filtering = true;
-
-			for (let p of ports)
-				if (br.ports.indexOf(p) === -1)
-					br.ports.push(p);
-
-			mapping[s.name] = br.ports;
-		}
-		else if (s.type == '8021q' || s.type == '8021ad') {
-			if (!isString(s.name) || !isString(s.vid) || !isString(s.ifname))
-				continue;
-
-			/* parent device is a bridge */
-			if (bridges[s.ifname]) {
-				/* parent bridge is VLAN enabled, device refers to VLAN ports */
-				if (bridges[s.ifname].vlan_filtering)
-					mapping[s.name] = bridges[s.ifname].vlans[s.vid];
-
-				/* parent bridge is not VLAN enabled, device refers to all bridge ports */
-				else
-					mapping[s.name] = bridges[s.ifname].ports;
-			}
-
-			/* parent is a simple netdev */
-			else {
-				mapping[s.name] = [ s.ifname ];
-			}
-
-			resolveVLANChain(s.ifname, bridges, mapping);
-		}
-	}
-
-	/* resolve VLAN tagged interfaces in bridge ports */
-	for (let brname in bridges) {
-		for (let bp of bridges[brname].ports)
-			resolveVLANChain(bp, bridges, mapping);
-
-		for (let vid in bridges[brname].vlans)
-			for (let v of bridges[brname].vlans[vid])
-				resolveVLANChain(v, bridges, mapping);
-	}
-
-	/* find implicit VLAN devices */
-	for (let i = 0, s; (s = interfaces[i]) != null; i++) {
-		if (!isString(s.device))
-			continue;
-
-		resolveVLANChain(s.device, bridges, mapping);
-	}
-}
-
-function resolveVLANPorts(ifname, mapping, seen)
-{
-	const ports = [];
-
-	if (!seen)
-		seen = {};
-
-	if (mapping[ifname]) {
-		for (let m of mapping[ifname]) {
-			if (!seen[m]) {
-				seen[m] = true;
-				ports.push.apply(ports, resolveVLANPorts(m, mapping, seen));
-			}
-		}
-	}
-	else {
-		ports.push(ifname);
-	}
-
-	return ports.sort(L.naturalCompare);
-}
-
 function buildInterfaceMapping(zones, networks) {
-	const vlanmap = {};
 	const portmap = {};
-	const netmap = {};
-
-	buildVLANMappings(vlanmap);
+	const networkPorts = new Map();
 
 	for (let net of networks) {
-		const l3dev = net.getDevice();
-
-		if (!l3dev)
-			continue;
-
-		const ports = resolveVLANPorts(l3dev.getName(), vlanmap);
+		const device = net.get('device') || net.getDevice()?.getName();
+		const ports = network.getPhysicalPortNames(device);
+		networkPorts.set(net.getName(), ports);
 
 		for (let p of ports) {
 			portmap[p] = portmap[p] || { networks: [], zones: [] };
 			portmap[p].networks.push(net);
 		}
-
-		netmap[net.getName()] = net;
 	}
 
-	for (let z of zones) {
-		const networknames = z.getNetworks();
-
-		for (let nn of networknames) {
-			if (!netmap[nn])
-				continue;
-
-			const l3dev = netmap[nn].getDevice();
-
-			if (!l3dev)
-				continue;
-
-			const ports = resolveVLANPorts(l3dev.getName(), vlanmap);
-
-			for (let p of ports) {
-				portmap[p] = portmap[p] || { networks: [], zones: [] };
-
-				if (portmap[p].zones.indexOf(z) === -1)
-					portmap[p].zones.push(z);
+	for (let zone of zones) {
+		for (let name of zone.getNetworks()) {
+			for (let p of networkPorts.get(name) || []) {
+				if (!portmap[p].zones.includes(zone))
+					portmap[p].zones.push(zone);
 			}
 		}
 	}
@@ -498,7 +329,7 @@ return baseclass.extend({
 			statsContent.push(E('span', { 'class': 'cbi-tooltip' }, formatStats(port.netdev, pse)));
 
 			return E('div', { 'class': 'ifacebox', 'style': 'margin:.25em;width:100px' }, [
-				E('div', { 'class': 'ifacebox-head', 'style': 'font-weight:bold' }, [ port.netdev.getName() ]),
+				E('div', { 'class': 'ifacebox-head', 'style': 'font-weight:bold' }, [ port.netdev.getShortName() ]),
 				E('div', { 'class': 'ifacebox-body' }, [
 					E('img', { 'src': L.resource('icons/port_%s.svg').format(portIcon) }),
 					E('br'),

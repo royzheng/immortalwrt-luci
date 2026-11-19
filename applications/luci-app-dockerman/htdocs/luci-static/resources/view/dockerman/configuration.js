@@ -21,6 +21,12 @@ return L.view.extend({
 		s = m.section(form.NamedSection, 'globals', 'section', _('Global settings'));
 
 		t = s.tab('globals', _('Globals'));
+		o = s.taboption('globals', form.Flag, 'enabled', _('Enable Docker'), _('Requires a mounted persistent data disk.'));
+		o.default = '0';
+		o.rmempty = false;
+		o = s.taboption('globals', form.Value, 'data_mount', _('Persistent data mount'), _('An actual ext4, XFS or Btrfs mount; the root overlay and modem partitions cannot be used.'));
+		o.placeholder = '/opt';
+		o.rmempty = false;
 
 		o = s.taboption('globals', form.Value, 'ps_flags',
 			_('Default ps flags'),

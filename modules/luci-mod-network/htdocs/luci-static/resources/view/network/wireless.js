@@ -138,6 +138,25 @@ function render_radio_status(radioDev, wifiNets) {
 		], ' | ');
 	else
 		node.lastElementChild.appendChild(E('em', _('Device is not active')));
+	if (uci.get('wireless', radioDev.getName(), 'vendor') == 'mediatek') {
+		const detail = E('div', {}, _('Driver status: querying…'));
+		node.appendChild(detail);
+		const configured = uci.get('wireless', radioDev.getName(), 'htmode') || _('Unknown');
+		fs.exec_direct('/usr/libexec/air6-wireless-status', [radioDev.getName()], 'json').then(function(s) {
+			let status = s.state || _('Unknown / query failed');
+			if (uci.get('wireless', radioDev.getName(), 'country') == 'CN' &&
+			    uci.get('wireless', radioDev.getName(), 'band') == '6g')
+				status = _('Disabled: 6 GHz is unavailable in the configured region');
+			else if (s.state == 'DFS')
+				status = _('Waiting for DFS channel availability check');
+			if (s.width && Number(s.width) < Number(configured.replace(/[^0-9]/g, '')))
+				status += '; ' + _('Actual bandwidth is below configuration; channel or DFS restrictions may apply');
+			dom.content(detail, _('Configured width: %s; actual width: %s; driver channel: %s; state: %s')
+				.format(configured, s.width ? s.width + ' MHz' : _('Unknown'), s.channel || _('Unknown'), status));
+		}).catch(function() {
+			dom.content(detail, _('Configured width: %s; driver status: unknown / query failed').format(configured));
+		});
+	}
 
 	return node;
 }
@@ -321,6 +340,13 @@ function eht_compat_default(section_id) {
 
 // Define a class CBIWifiFrequencyValue that extends form.Value
 var CBIWifiFrequencyValue = form.Value.extend({
+	loadFrequencyList: function(section_id) {
+		const prefix = uci.get('wireless', section_id, 'main_ifname');
+		const devices = [section_id, uci.get('wireless', section_id, 'phy'), prefix ? prefix + '0' : null].filter(Boolean);
+		const next = () => devices.length ?
+			this.callFrequencyList(devices.shift()).catch(() => []).then(result => result.length ? result : next()) : Promise.resolve([]);
+		return next();
+	},
 	// Declare an RPC method to get the frequency list for a given device
 	callFrequencyList: rpc.declare({
 		object: 'iwinfo',
@@ -333,7 +359,7 @@ var CBIWifiFrequencyValue = form.Value.extend({
 	load: function(section_id) {
 		return Promise.all([
 			network.getWifiDevice(section_id),
-			this.callFrequencyList(section_id)
+			this.loadFrequencyList(section_id)
 		]).then(L.bind(function(data) {
 			this.channels = {
 				'2g': L.hasSystemFeature('hostapd', 'acs') ? [ 'auto', 'auto', { available: true } ] : [],
@@ -343,13 +369,14 @@ var CBIWifiFrequencyValue = form.Value.extend({
 			};
 			const wifidevs = data[0];
 			const freqlist = data[1];
+			this.frequencyUnavailable = !freqlist.length;
 
 			freqlist.forEach(freq => {
 				if (!freq.band)
 					return;
 
 				const band = '%dg'.format(freq.band);
-				const available = !(freq.restricted && freq.flags.includes("no_ir"));
+				const available = !(freq.restricted && (freq.flags || []).includes("no_ir"));
 
 				this.channels[band].push(
 					freq.channel,
@@ -364,6 +391,7 @@ var CBIWifiFrequencyValue = form.Value.extend({
 
 			const hwmodelist = L.toArray(wifidevs ? wifidevs.getHWModes() : null)
 				.reduce(function(o, v) { o[v] = true; return o; }, {});
+			this.frequencyUnavailable ||= !Object.keys(hwmodelist).length;
 
 			// Define supported modes
 			this.modes = [
@@ -544,6 +572,9 @@ var CBIWifiFrequencyValue = form.Value.extend({
 	},
 
 	renderWidget: function(section_id, option_index, cfgvalue) {
+		if (this.frequencyUnavailable)
+			return E('div', { 'class': 'alert-message warning' },
+				_('Radio capabilities are unavailable. Saved band, channel and width will be preserved; restore the radio before changing frequency.'));
 		const elem = E('div');
 
 		dom.content(elem, [
@@ -601,6 +632,8 @@ var CBIWifiFrequencyValue = form.Value.extend({
 	},
 
 	formvalue: function(section_id) {
+		if (this.frequencyUnavailable)
+			return this.cfgvalue(section_id);
 		const node = this.map.findElement('data-field', this.cbid(section_id));
 
 		return [
@@ -611,6 +644,15 @@ var CBIWifiFrequencyValue = form.Value.extend({
 	},
 
 	write: function(section_id, value) {
+		if (this.frequencyUnavailable)
+			return;
+		// A down radio or failed iwinfo lookup can leave the selects empty.
+		// Validate the whole tuple before touching UCI: an empty htmode is
+		// only meaningful for an explicitly selected legacy mode.
+		if (!value || !value[1] || !value[2] ||
+		    (!value[0] && uci.get('wireless', section_id, 'htmode') &&
+		     this.map?.findElement('data-field', this.cbid(section_id))?.querySelector('.mode')?.value !== ''))
+			throw new Error(_('Cannot save an incomplete operating frequency. Restore the radio capability query and try again.'));
 		uci.set('wireless', section_id, 'htmode', value[0] || null);
 
 		this.useBandOption ?
