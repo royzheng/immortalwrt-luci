@@ -82,7 +82,7 @@ return view.extend({
 		const parse = m.parse.bind(m);
 		m.parse = async function() {
 			await parse();
-			if (uci.get('network', instance, 'proto') !== 'openvpn' || uci.get('firewall', rule) !== 'rule')
+			if (uci.get('network', instance, 'proto') !== 'openvpn' || uci.get('firewall', rule, '.type') !== 'rule')
 				throw new Error(_('The OpenVPN server interface or firewall rule is missing.'));
 			const active = uci.get('network', instance, 'disabled') === '0';
 			if (active) await runHelper('/etc/openvpn/renewcert.sh');

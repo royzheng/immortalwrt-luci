@@ -10,7 +10,7 @@ LUCI_DEPENDS:=+luci-compat +openvpn-openssl +openvpn-easy-rsa +kmod-tun
 
 PKG_NAME:=luci-app-openvpn-server
 PKG_VERSION:=3.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_CONFIG_DEPENDS+=CONFIG_TARGET_mediatek_mt6990_DEVICE_softbank_air6
 
 # AIR6 uses the netifd OpenVPN backend. Other targets retain the legacy UI.
