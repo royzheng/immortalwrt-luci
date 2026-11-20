@@ -123,26 +123,9 @@ return {
 
 	action_translations: function(reqlang) {
 		const catalog = dictionary(reqlang ?? dispatcher.lang, true);
-		const etag = '"' + catalog.version + '"';
-		const immutable = http.formvalue('v') == catalog.version;
-
-		http.header('Cache-Control', immutable ? 'private, max-age=31536000, immutable' : 'private, no-cache');
-		http.header('ETag', etag);
+		if (http.formvalue('v') == catalog.version)
+			http.header('Cache-Control', 'private, max-age=31536000, immutable');
 		http.prepare_content('application/javascript; charset=UTF-8');
-
-		const validators = split(http.getenv('HTTP_IF_NONE_MATCH') ?? http.getenv('headers')?.['if-none-match'] ?? '', ',');
-		for (let value in validators) {
-			const tag = trim(value);
-			if (tag == '*' || tag == etag || tag == 'W/' + etag) {
-				const method = http.getenv('REQUEST_METHOD');
-				if (method == 'GET' || method == 'HEAD')
-					http.status(304, 'Not Modified');
-				else
-					http.status(412, 'Precondition Failed');
-				return;
-			}
-		}
-
 		http.write(catalog.body);
 	},
 
