@@ -22,7 +22,7 @@ return L.view.extend({
 
 		t = s.tab('globals', _('Globals'));
 		o = s.taboption('globals', form.Flag, 'enabled', _('Enable Docker'), _('Requires a mounted persistent data disk.'));
-		o.default = '0';
+		o.default = '1';
 		o.rmempty = false;
 		o = s.taboption('globals', form.Value, 'data_mount', _('Persistent data mount'), _('An actual ext4, XFS or Btrfs mount; the root overlay and modem partitions cannot be used.'));
 		o.placeholder = '/opt';
@@ -56,6 +56,7 @@ return L.view.extend({
 			_('For local dockerd socket instances only.'));
 		o.datatype = 'folder';
 		o.default = '/opt/docker';
+		o.rmempty = false;
 		o.root_directory = '/';
 		o.show_hidden = true;
 
