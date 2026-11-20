@@ -4,6 +4,60 @@
 /* 运行时英文词典：跟随 LuCI 语言，仅在非中文界面替换页面文案。 */
 
 const EN = {
+	"连接中…": "Connecting\u2026",
+	"连接": "Connect",
+	"蜂窝连接": "Cellular connection",
+	"状态读取": "Status",
+	"操作已提交": "Request submitted",
+	"操作已提交，请稍后刷新状态。": "Request submitted. Refresh in a moment to check the state.",
+	"暂无运营商标注": "No operator listed",
+	"图标说明": "Icon legend",
+	"海外部署示例": "Overseas deployment example",
+	"运营商 / 地区": "Operator / region",
+	"澳大利亚": "Australia",
+	"波兰": "Poland",
+	"沙特阿拉伯": "Saudi Arabia",
+	"奥地利": "Austria",
+	"英国（历史部署）": "UK (historical deployment)",
+	"日本": "Japan",
+	"移": "M",
+	"联": "U",
+	"电": "T",
+	"广": "B",
+	"请选择": "Select a mode",
+	"当前模式": "Current mode",
+	"切换到": "Switch to",
+	"未读取到": "Unavailable",
+	"重新读取": "Read again",
+	"尚未确认所选模式，请重新读取。": "Selected mode has not been confirmed. Read again.",
+	"当前接入制式": "Serving radio technology",
+	"国内运营商": "Mainland operators",
+	"原厂频段": "Factory band",
+	"扩展频段": "Extended band",
+	"当前": "In use",
+	"可用": "Enabled",
+	"未启用": "Disabled",
+	"模组报告": "Band profile",
+	"EU25 扩展频段": "EU25 extended bands",
+	"查看 AT 原始返回": "Show raw AT responses",
+	"工程诊断": "Engineering diagnostics",
+	"AT+ECELL 查询服务小区和邻区测量，AT+EINFO? 查询工程信息设置。": "AT+ECELL queries serving and neighbouring cells. AT+EINFO? reads engineering information settings.",
+	"射频": "Radio",
+	"实时速率": "Live throughput",
+	"网络 → 接口": "Network \u2192 Interfaces",
+	"修改 APN、IP 类型、认证、MTU 和重试次数：": "Edit the APN, IP type, authentication, MTU and retries in",
+	"关闭射频会立即断开蜂窝连接。": "Turning the radio off disconnects cellular data immediately.",
+	"工程信息": "Engineering information",
+	"查看接口状态与配置原文": "Show raw interface status and configuration",
+	"快捷命令": "Quick commands",
+	"部分 AT 命令会更改模组状态，可能中断注册、通话或数据业务。仅支持 AT 指令。": "Some AT commands change modem state and may interrupt registration, calls or data. Enter AT commands only.",
+	"图标表示中国大陆已核实的频率许可、共享或地区部署。实际覆盖因地区而异。n3 已有地区重耕验证，n78 的广电标识仅指 3.3 GHz 室内共享。": "The marks show documented mainland spectrum licences, sharing or regional deployments. Coverage varies. n3 has regional refarming trials. Broadnet on n78 refers to 3.3 GHz indoor sharing.",
+	"序号": "Index",
+	"发送方": "Sender",
+	"状态": "Status",
+	"时间": "Time",
+	"AT 命令": "AT command",
+	"当前接入": "Serving network",
 	"%d 分": "%d min",
 	"%d 天 %d 小时": "%d d %d h",
 	"%d 小时 %d 分": "%d h %d min",
@@ -199,7 +253,9 @@ function walk(node) {
 	if (!node)
 		return;
 	if (node.nodeType === 3) {
-		node.nodeValue = translateText(node.nodeValue);
+		const translated = translateText(node.nodeValue);
+		if (translated !== node.nodeValue)
+			node.nodeValue = translated;
 		return;
 	}
 	if (node.nodeType !== 1 || node.tagName === 'SCRIPT' || node.tagName === 'STYLE')

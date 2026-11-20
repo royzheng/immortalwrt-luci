@@ -2,7 +2,7 @@
 'require view';
 'require rpc';
 'require ui';
-'require air6modem.common_v3 as common';
+'require air6modem.common_v4 as common';
 
 const runAt = rpc.declare({ object: 'luci.air6modem', method: 'run_at', params: [ 'command' ] });
 
@@ -28,11 +28,18 @@ function nowText() {
 return view.extend({
 	log(lines) {
 		let box = document.getElementById('a6-at-log');
-		if (!box) return;
+		if (!box) {
+			const container = document.getElementById('a6-at-output');
+			if (!container) return;
+			box = common.raw('', 'a6-at-log');
+			box.setAttribute('role', 'log');
+			container.appendChild(box);
+			document.getElementById('a6-at-ready')?.closest('.cbi-section-descr')?.remove();
+		}
 		let frag = document.createDocumentFragment();
 		for (let line of lines) {
 			if (!line.text) { frag.appendChild(document.createTextNode('\n')); continue; }
-			let span = E('span', { 'class': line.cls || '' }, line.text);
+			let span = E('span', { 'class': line.cls || '' }, [line.text]);
 			frag.appendChild(span);
 			frag.appendChild(document.createTextNode('\n'));
 		}
@@ -67,35 +74,26 @@ return view.extend({
 	},
 
 	render() {
-		return E('div', { 'class': 'a6-page' }, [
-			common.style(),
-
-			E('div', { 'class': 'a6-head' }, [
-				E('h2', { 'class': 'a6-title' }, [ _('AT 终端') ])
-			]),
-			common.navigation('terminal'),
-
-			E('div', { 'class': 'alert-message warning' }, [
-				E('span', {}, '⚠'),
-				E('span', {}, _('AT 命令会直接改模组状态，可能中断注册、通话或数据业务。仅支持 AT 指令字符，不接受 shell 语法。'))
-			]),
-
-			common.card(_('发送命令'), E('div', {}, [
-				E('div', { 'class': 'a6-term' }, [
-					E('input', {
-						id: 'a6-at-command', value: 'AT+CESQ', maxlength: 512,
-						placeholder: 'AT+...', 'class': 'cbi-input-text', 'aria-label': _('AT 命令'),
-						keydown: ev => { if (ev.key === 'Enter') this.handleRun(); }
-					}),
-					E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(this, 'handleRun') }, _('执行'))
-				]),
-				E('div', { 'class': 'a6-quick' }, QUICK.map(item => E('button', {
-					'class': 'cbi-button', 'data-cmd': item[0],
+		const output = E('div', { id: 'a6-at-output' });
+		const ready = E('span', { id: 'a6-at-ready' }, _('就绪，输入命令或点上面的快捷按钮。'));
+		const command = common.wideInput('a6-at-command', 'AT+CESQ', { placeholder: 'AT+...', maxlength: 512 });
+		const input = command.querySelector('input');
+		input.setAttribute('aria-describedby', 'a6-at-warning');
+		input.addEventListener('keydown', ev => { if (ev.key === 'Enter') this.handleRun(); });
+		const warning = E('span', { id: 'a6-at-warning', 'class': 'error' },
+			_('部分 AT 命令会更改模组状态，可能中断注册、通话或数据业务。仅支持 AT 指令。'));
+		return E('div', { 'class': 'cbi-map a6-page' }, [
+			E('h2', {}, _('AT 终端')), common.navigation('terminal'),
+			common.section(_('发送命令'), [
+				common.field(_('AT 命令'), [
+					command, common.actions([E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(this, 'handleRun') }, _('执行'))])
+				], 'a6-at-command', warning),
+				common.field(_('快捷命令'), common.actions(QUICK.map(item => E('button', {
+					'class': 'cbi-button', 'data-cmd': item[0], title: item[0],
 					click: ui.createHandlerFn(this, 'handleQuick')
-				}, item[1])))
-			])),
-
-			common.card(_('输出'), E('pre', { id: 'a6-at-log', 'class': 'a6-log' }, _('就绪，输入命令或点上面的快捷按钮。')))
+				}, item[1]))))
+			]),
+			common.section(_('输出'), output, ready)
 		]);
 	},
 

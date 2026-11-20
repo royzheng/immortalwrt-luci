@@ -2,7 +2,7 @@
 'require view';
 'require rpc';
 'require ui';
-'require air6modem.common_v3 as common';
+'require air6modem.common_v4 as common';
 
 const listSms = rpc.declare({ object: 'luci.air6modem', method: 'list_sms', expect: {} });
 const getSmsc = rpc.declare({ object: 'luci.air6modem', method: 'get_smsc', expect: {} });
@@ -80,18 +80,12 @@ function groupMessages(records) {
 function messageList(data) {
 	let messages = groupMessages(parseMessages(data?.output || ''));
 	if (!messages.length)
-		return E('div', { 'class': 'a6-empty' }, _('暂无短信（或当前 SIM 没有存储的消息）'));
+		return E('p', { 'class': 'cbi-section-descr' }, _('暂无短信（或当前 SIM 没有存储的消息）'));
 
-	return E('div', {}, messages.map(msg => E('div', { 'class': 'a6-msg' }, [
-		E('div', { 'class': 'a6-msg-head' }, [
-			E('b', {}, msg.sender || _('未知号码')),
-			E('span', { 'class': 'a6-msg-badge' }, stateText(msg.state)),
-			E('span', { 'class': 'a6-msg-time' }, msg.time || ''),
-			msg.incomplete ? E('span', { 'class': 'a6-msg-time' }, _('不完整 %s').format(msg.incomplete)) : '',
-			E('span', { 'class': 'a6-msg-idx' }, _('序号 %s').format(msg.indexes))
-		]),
-		E('div', { 'class': 'a6-msg-body' }, msg.text || '')
-	])));
+	return common.table([_('序号'), _('发送方'), _('状态'), _('时间'), _('内容')], messages.map(msg => [
+		msg.indexes, msg.sender || _('未知号码'), stateText(msg.state), msg.time,
+		E('div', {}, [msg.text, msg.incomplete ? ' (' + _('不完整 %s').format(msg.incomplete) + ')' : ''])
+	]), _('收件箱'));
 }
 
 function smscOf(result) {
@@ -117,7 +111,7 @@ return view.extend({
 	},
 
 	handleRefresh() {
-		return this.refresh().then(() => ui.addNotification(null, E('p', {}, _('短信已刷新'))));
+		return this.refresh().then(() => ui.addTimeLimitedNotification(null, E('p', {}, _('短信已刷新')), 3500, 'info'));
 	},
 
 	handleSend() {
@@ -126,7 +120,7 @@ return view.extend({
 		return sendSms(number, text).then(r => {
 			this.showResult(r);
 			if (r.code) throw new Error(common.resultText(r));
-			ui.addNotification(null, E('p', {}, _('短信已提交给模组')));
+			ui.addTimeLimitedNotification(null, E('p', {}, _('短信已提交给模组')), 3500, 'info');
 		}).catch(e => common.callError(_('发送短信'), e));
 	},
 
@@ -145,48 +139,38 @@ return view.extend({
 	render(result) {
 		let list = result[0] || {}, smsc = result[1] || {};
 
-		return E('div', { 'class': 'a6-page' }, [
-			common.style(),
-
-			E('div', { 'class': 'a6-head' }, [
-				E('h2', { 'class': 'a6-title' }, [ _('短信') ]),
-				E('button', { 'class': 'cbi-button', click: ui.createHandlerFn(this, 'handleRefresh') }, '↻ ' + _('刷新'))
+		const number = common.wideInput('a6-sms-number', '', { placeholder: '+8613800138000' });
+		number.querySelector('input').type = 'tel';
+		const body = new ui.Textarea('', { rows: 2, wrap: true, placeholder: _('最多 160 个 GSM/ASCII 字符') }).render();
+		const textarea = body.querySelector('textarea');
+		textarea.id = 'a6-sms-text';
+		textarea.maxLength = 160;
+		textarea.style.minHeight = '0';
+		const action = (title, handler, primary) => E('button', {
+			'class': primary ? 'cbi-button cbi-button-action' : 'cbi-button', click: ui.createHandlerFn(this, handler)
+		}, title);
+		return E('div', { 'class': 'cbi-map a6-page' }, [
+			E('h2', {}, _('短信')), common.navigation('sms'),
+			common.section(_('收件箱'), [
+				E('div', { id: 'a6-sms-list' }, messageList(list)),
+				common.field(_('操作'), common.actions([action(_('刷新'), 'handleRefresh')]))
 			]),
-			common.navigation('sms'),
-
-			common.card(_('收件箱'), E('div', { id: 'a6-sms-list' }, messageList(list))),
-
-			common.card(_('发送短信'), E('div', {}, [
-				E('div', { 'class': 'a6-form-row' }, [
-					E('label', { 'for': 'a6-sms-number' }, _('接收号码')),
-					E('input', { 'class': 'cbi-input-text', id: 'a6-sms-number', type: 'tel', placeholder: '+8613800138000' }),
-					E('label', { 'for': 'a6-sms-text' }, _('内容')),
-					E('textarea', { 'class': 'cbi-input-textarea', id: 'a6-sms-text', rows: 4, maxlength: 160, placeholder: _('最多 160 个 GSM/ASCII 字符') })
-				]),
-				E('div', { 'style': 'margin-top:.8rem' }, [
-					E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(this, 'handleSend') }, _('发送'))
-				]),
-				E('p', { 'class': 'a6-note' }, _('通过厂商 libqlril 的短信接口提交；中文短信暂不支持，请用 ASCII。'))
-			])),
-
-			common.card(_('删除与短信中心'), E('div', {}, [
-				E('div', { 'class': 'a6-form-row' }, [
-					E('label', { 'for': 'a6-sms-index' }, _('消息序号')),
-					E('div', { 'style': 'display:flex;gap:.5rem' }, [
-						E('input', { 'class': 'cbi-input-text', id: 'a6-sms-index', type: 'number', min: 0, 'style': 'max-width:8rem' }),
-						E('button', { 'class': 'cbi-button', click: ui.createHandlerFn(this, 'handleDelete') }, _('删除'))
-					])
-				]),
-				E('div', { 'class': 'a6-form-row', 'style': 'margin-top:.6rem' }, [
-					E('label', { 'for': 'a6-smsc' }, _('短信中心')),
-					E('div', { 'style': 'display:flex;gap:.5rem' }, [
-						E('input', { 'class': 'cbi-input-text', id: 'a6-smsc', value: smscOf(smsc) }),
-						E('button', { 'class': 'cbi-button', click: ui.createHandlerFn(this, 'handleSetSmsc') }, _('设置'))
-					])
-				])
-			])),
-
-			common.card(_('操作结果'), E('pre', { id: 'a6-sms-result', 'class': 'a6-raw' }, _('（尚未执行操作）')))
+			common.section(_('发送短信'), [
+				common.field(_('接收号码'), number, 'a6-sms-number'),
+				common.field(_('内容'), body, 'a6-sms-text', _('通过厂商 libqlril 的短信接口提交；中文短信暂不支持，请用 ASCII。')),
+				common.field(_('操作'), common.actions([action(_('发送'), 'handleSend', true)]))
+			]),
+			common.section(_('删除与短信中心'), [
+				common.field(_('消息序号'), common.actions([
+					E('input', { 'class': 'cbi-input-text', id: 'a6-sms-index', type: 'number', min: 0 }),
+					action(_('删除'), 'handleDelete')
+				]), 'a6-sms-index'),
+				common.field(_('短信中心'), common.actions([
+					E('input', { 'class': 'cbi-input-text', id: 'a6-smsc', value: smscOf(smsc) }),
+					action(_('设置'), 'handleSetSmsc')
+				]), 'a6-smsc')
+			]),
+			common.section(_('操作结果'), common.raw(_('（尚未执行操作）'), 'a6-sms-result'))
 		]);
 	},
 

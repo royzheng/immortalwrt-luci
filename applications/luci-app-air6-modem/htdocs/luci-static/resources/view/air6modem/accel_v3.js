@@ -2,7 +2,7 @@
 'require view';
 'require rpc';
 'require poll';
-'require air6modem.common_v3 as common';
+'require air6modem.common_v4 as common';
 
 /* 加速统计：HNAT PPE 绑定计数 + 各接口流量。 */
 
@@ -28,14 +28,6 @@ function fmtBytes(value) {
 function fmtCount(value) {
 	let n = +value || 0;
 	return n.toLocaleString('en-US');
-}
-
-function card(label, id, cls) {
-	return E('div', { 'class': 'cbi-value' }, [
-		E('div', { 'class': 'cbi-value-title' }, label),
-		E('div', { 'class': 'cbi-value-field' },
-			E('strong', { id: id, 'class': cls || '' }, '-'))
-	]);
 }
 
 function rates(interfaces) {
@@ -95,13 +87,13 @@ function update(root, data) {
 
 	for (let it of interfaces.sort((a, b) => a.name.localeCompare(b.name))) {
 		let d = delta[it.name] || { rx: 0, tx: 0 };
-		body.appendChild(E('tr', {}, [
-			E('td', {}, E('strong', {}, it.name)),
-			E('td', { 'class': 'a6-rx' }, fmtBytes(d.rx) + '/s'),
-			E('td', { 'class': 'a6-tx' }, fmtBytes(d.tx) + '/s'),
-			E('td', {}, fmtBytes(it.rx_bytes)),
-			E('td', {}, fmtBytes(it.tx_bytes)),
-			E('td', {}, fmtCount((+it.rx_errors || 0) + (+it.tx_errors || 0)) +
+		body.appendChild(E('tr', { 'class': 'tr' }, [
+			E('td', { 'class': 'td' }, E('strong', {}, [it.name])),
+			E('td', { 'class': 'td' }, fmtBytes(d.rx) + '/s'),
+			E('td', { 'class': 'td' }, fmtBytes(d.tx) + '/s'),
+			E('td', { 'class': 'td' }, fmtBytes(it.rx_bytes)),
+			E('td', { 'class': 'td' }, fmtBytes(it.tx_bytes)),
+			E('td', { 'class': 'td' }, fmtCount((+it.rx_errors || 0) + (+it.tx_errors || 0)) +
 				' / ' + fmtCount((+it.rx_dropped || 0) + (+it.tx_dropped || 0)))
 		]));
 	}
@@ -113,32 +105,18 @@ return view.extend({
 	},
 
 	render(data) {
-		let root = E('div', { 'class': 'a6-page', id: 'a6-accel' }, [
-			common.style(),
-			E('h2', {}, _('加速统计')),
-			common.navigation('accel'),
-			E('p', { id: 'a6-stats-error', role: 'status' }),
-			E('div', { 'class': 'cbi-section-node' }, [
-				card('HNAT', 'a6-hnat-state'),
-				card('PPE0 绑定条目', 'a6-ppe0'),
-				card('PPE1 绑定条目', 'a6-ppe1'),
-				card('CPU→Wi-Fi 注入', 'a6-injected'),
-				card('注入回退', 'a6-fallback')
-			]),
-			E('p', { 'class': 'cbi-section-descr' },
-				'本轮固件默认软件转发，以兼容多 WAN、VPN 与代理策略；HNAT 模块加载不等于流量正在硬件加速。'),
-			E('h3', {}, '接口流量'),
-			E('div', { 'class': 'a6-table-wrap' }, E('table', { 'class': 'table' }, [
-				E('thead', {}, E('tr', {}, [
-					E('th', {}, '接口'),
-					E('th', {}, '接收速率'),
-					E('th', {}, '发送速率'),
-					E('th', {}, '接收总量'),
-					E('th', {}, '发送总量'),
-					E('th', {}, '错误 / 丢包')
-				])),
-				E('tbody', { id: 'a6-iface-body' })
-			]))
+		let headings = [_('接口'), _('接收速率'), _('发送速率'), _('接收总量'), _('发送总量'), _('错误 / 丢包')];
+		const traffic = common.table(headings, [], _('接口流量'));
+		traffic.querySelector('tbody').id = 'a6-iface-body';
+		let root = E('div', { 'class': 'cbi-map a6-page', id: 'a6-accel' }, [
+			E('h2', {}, _('加速统计')), common.navigation('accel'),
+			common.section(_('加速状态'), common.statusTable([
+				['HNAT', E('span', { id: 'a6-hnat-state' })], [_('PPE0 绑定条目'), E('span', { id: 'a6-ppe0' })],
+				[_('PPE1 绑定条目'), E('span', { id: 'a6-ppe1' })], [_('CPU→Wi-Fi 注入'), E('span', { id: 'a6-injected' })],
+				[_('注入回退'), E('span', { id: 'a6-fallback' })]
+			]), _('本轮固件默认软件转发，以兼容多 WAN、VPN 与代理策略；HNAT 模块加载不等于流量正在硬件加速。')),
+			common.section(_('接口流量'), traffic),
+			E('div', { id: 'a6-stats-error', role: 'status' })
 		]);
 
 		update(root, data);

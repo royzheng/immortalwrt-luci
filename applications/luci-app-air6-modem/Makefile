@@ -15,7 +15,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-air6-modem
 PKG_VERSION:=1.0.0
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_LICENSE:=Apache-2.0
 PKG_MAINTAINER:=Air6 bring-up
@@ -86,28 +86,31 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_BIN) ./root/etc/uci-defaults/98-air6-ui-defaults $(1)/etc/uci-defaults/98-air6-ui-defaults
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/air6modem
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/common_v3.js \
-		$(1)/www/luci-static/resources/air6modem/common_v3.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/i18n.js \
-		$(1)/www/luci-static/resources/air6modem/i18n.js
+	$(INSTALL_DIR) $(1)/www/luci-static/resources/air6modem/carriers
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/carriers/*.png $(1)/www/luci-static/resources/air6modem/carriers/
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/common_v4.js \
+		$(1)/www/luci-static/resources/air6modem/common_v4.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/mode.js $(1)/www/luci-static/resources/air6modem/mode.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/air6modem/i18n_v2.js \
+		$(1)/www/luci-static/resources/air6modem/i18n_v2.js
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/i18n/luci-app-air6-modem.en.lmo \
 		$(1)/usr/lib/lua/luci/i18n/luci-app-air6-modem.en.lmo
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/air6modem
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/overview_v11.js \
-		$(1)/www/luci-static/resources/view/air6modem/overview_v11.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/bands_v4.js \
-		$(1)/www/luci-static/resources/view/air6modem/bands_v4.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/network_v6.js \
-		$(1)/www/luci-static/resources/view/air6modem/network_v6.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/sms_v6.js \
-		$(1)/www/luci-static/resources/view/air6modem/sms_v6.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/terminal_v6.js \
-		$(1)/www/luci-static/resources/view/air6modem/terminal_v6.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/accel_v2.js \
-		$(1)/www/luci-static/resources/view/air6modem/accel_v2.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/overview_v12.js \
+		$(1)/www/luci-static/resources/view/air6modem/overview_v12.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/bands_v5.js \
+		$(1)/www/luci-static/resources/view/air6modem/bands_v5.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/network_v7.js \
+		$(1)/www/luci-static/resources/view/air6modem/network_v7.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/sms_v7.js \
+		$(1)/www/luci-static/resources/view/air6modem/sms_v7.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/terminal_v7.js \
+		$(1)/www/luci-static/resources/view/air6modem/terminal_v7.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/air6modem/accel_v3.js \
+		$(1)/www/luci-static/resources/view/air6modem/accel_v3.js
 endef
 
 define Package/$(PKG_NAME)/postinst

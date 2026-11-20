@@ -49,10 +49,20 @@ function cli(option, arg) {
 	/* mipc_wan_cli 独占 ttyCMIPC6；和状态采集脚本共用一把锁，避免互相打断。 */
 	let runner = 'exec 9>/var/lock/luci-air6modem-control.lock; ' +
 		'/usr/bin/flock -n 9 || { echo __MODEM_LOCK_BUSY__; exit 75; }; ' +
-		'/bin/sleep 0.2; ' + join(' ', map(argv, quote));
+		"ucode -e 'sleep(200)'; " + join(' ', map(argv, quote));
 	let result = capture([ '/bin/sh', '-c', runner ], 15);
 	if (index(result.output, '__MODEM_LOCK_BUSY__') >= 0)
 		return { output: 'Modem command channel is busy; retry shortly', code: 75 };
+	return result;
+}
+
+/* Allow the status collector to finish its two-second hold on the control port. */
+function read_cli(option) {
+	let result = cli(option);
+	for (let attempt = 0; result.code == 75 && attempt < 2; attempt++) {
+		sleep(1250);
+		result = cli(option);
+	}
 	return result;
 }
 
@@ -191,12 +201,12 @@ const methods = {
 	} },
 
 	/* AT+ECELL 是 MT6990 私有命令；不支持时返回原始错误，页面显示空表。 */
-	get_cells: { call: function() {
+	get_cells: { args: { engineering: true }, call: function(req) {
 		if (!modem_settled(network_state()))
 			return { initializing: true, serving: { output: 'Waiting for modem startup to settle' }, engineering: { output: '' } };
 		return {
 			serving: at('AT+ECELL'),
-			engineering: at('AT+EINFO?'),
+			engineering: req.args?.engineering == false ? null : at('AT+EINFO?'),
 			note: 'Channel information comes from the read-only AT+ECELL response.'
 		};
 	} },
@@ -250,8 +260,9 @@ const methods = {
 		let state = capture([ '/bin/ubus', 'call', `network.interface.${IFACE}`, 'status' ], 5);
 		let config = capture([ '/sbin/uci', '-q', 'show', `network.${IFACE}` ], 5);
 		let cached = cached_modem_state();
+		let radio = read_cli('nw_radio_state_get');
 		return { interface: IFACE, status: state.output, config: config.output,
-			radio: cached.RADIO || '', rat: cached.RAT_RAW || cached.RAT || 'UNKNOWN', cached: true,
+			radio: radio.code == 0 ? radio.output : '', rat: cached.RAT_RAW || cached.RAT || 'UNKNOWN', rat_cached: true,
 			apn: uci_get(`network.${IFACE}.apn`),
 			plmn: uci_get(`network.${IFACE}.plmn`),
 			iptype: uci_get(`network.${IFACE}.iptype`),
@@ -261,6 +272,18 @@ const methods = {
 
 	set_radio: { args: { enabled: true }, call: function(req) {
 		return cli('nw_radio_state_set', req.args?.enabled ? '1' : '0');
+	} },
+
+	get_band_set: { call: function() {
+		let r = at('AT+AIR6BAND?');
+		let target = match(r.output, /TARGET=([A-Z0-9_]+)/);
+		return { target: r.code == 0 && target ? target[1] : null };
+	} },
+
+	get_rat: { call: function() {
+		let result = read_cli('nw_get_rat');
+		let mode = match(result.output, /(^|\n)(SIM[0-9]+ )?RAT Mode Value: ([0-9]+)[ \t\r]*(\n|$)/);
+		return { mode: result.code == 0 && mode ? +mode[3] : null };
 	} },
 
 	set_rat: { args: { mode: 21 }, call: function(req) {

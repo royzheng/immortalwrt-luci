@@ -3,7 +3,7 @@
 		"description": "View and control the MT6990 integrated 5G modem",
 		"read": {
 			"ubus": {
-				"luci.air6modem": [ "get_status", "get_cells", "list_sms", "get_smsc", "get_network", "get_accel_stats" ]
+				"luci.air6modem": [ "get_status", "get_cells", "list_sms", "get_smsc", "get_network", "get_rat", "get_band_set", "get_accel_stats" ]
 			}
 		},
 		"write": {

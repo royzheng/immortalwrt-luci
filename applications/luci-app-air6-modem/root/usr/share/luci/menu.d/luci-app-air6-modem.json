@@ -4,7 +4,7 @@
 		"order": 25,
 		"action": {
 			"type": "view",
-			"path": "air6modem/overview_v11"
+			"path": "air6modem/overview_v12"
 		},
 		"depends": {
 			"acl": [
@@ -17,7 +17,7 @@
 		"order": 10,
 		"action": {
 			"type": "view",
-			"path": "air6modem/overview_v11"
+			"path": "air6modem/overview_v12"
 		},
 		"depends": {
 			"acl": [
@@ -30,7 +30,7 @@
 		"order": 20,
 		"action": {
 			"type": "view",
-			"path": "air6modem/bands_v4"
+			"path": "air6modem/bands_v5"
 		},
 		"depends": {
 			"acl": [
@@ -43,7 +43,7 @@
 		"order": 25,
 		"action": {
 			"type": "view",
-			"path": "air6modem/accel_v2"
+			"path": "air6modem/accel_v3"
 		},
 		"depends": {
 			"acl": [
@@ -56,7 +56,7 @@
 		"order": 30,
 		"action": {
 			"type": "view",
-			"path": "air6modem/network_v6"
+			"path": "air6modem/network_v7"
 		},
 		"depends": {
 			"acl": [
@@ -69,7 +69,7 @@
 		"order": 40,
 		"action": {
 			"type": "view",
-			"path": "air6modem/sms_v6"
+			"path": "air6modem/sms_v7"
 		},
 		"depends": {
 			"acl": [
@@ -82,7 +82,7 @@
 		"order": 50,
 		"action": {
 			"type": "view",
-			"path": "air6modem/terminal_v6"
+			"path": "air6modem/terminal_v7"
 		},
 		"depends": {
 			"acl": [
