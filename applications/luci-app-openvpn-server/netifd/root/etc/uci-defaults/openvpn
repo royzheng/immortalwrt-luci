@@ -1,7 +1,37 @@
 #!/bin/sh
 set -e
+# Use the primary static LAN IPv4 for DNS and its subnet for the client route.
+# ipcalc.sh emits validated IPv4 addresses and integers for shell use.
+add_lan_push_defaults() {
+	local address cidr lan_info IP NETWORK NETMASK PREFIX BROADCAST COUNT mask
+	mask="$(uci -q get network.lan.netmask || :)"
+	for address in $(uci -q get network.lan.ipaddr); do
+		case "$address" in
+			*/*) cidr="$address" ;;
+			*) cidr="$address/${mask:-32}" ;;
+		esac
+		lan_info="$(/bin/ipcalc.sh "$cidr" 2>/dev/null)" || continue
+		eval "$lan_info"
+		uci add_list "network.ovpnserver.push=dhcp-option DNS $IP"
+		if [ "$NETWORK $NETMASK" != "192.168.1.0 255.255.255.0" ]; then
+			uci add_list "network.ovpnserver.push=route $NETWORK $NETMASK"
+		fi
+		break
+	done
+}
 # netifd owns this server. Its disabled flag also keeps it down on boot.
 if ! uci -q get network.ovpnserver >/dev/null; then
+	# Fresh installs allow authenticated IPv4 clients to exit through the WAN zone.
+	# Commit the matching forwarding first so initialization can be retried.
+	if ! uci -q get firewall.ovpnsrv_wan >/dev/null; then
+		uci -q batch <<-'UCI'
+			set firewall.ovpnsrv_wan=forwarding
+			set firewall.ovpnsrv_wan.src='ovpnsrv'
+			set firewall.ovpnsrv_wan.dest='wan'
+			set firewall.ovpnsrv_wan.family='ipv4'
+			commit firewall
+		UCI
+	fi
 	uci -q batch <<-'UCI'
 		set network.ovpnserver=interface
 		set network.ovpnserver.proto='openvpn'
@@ -12,9 +42,11 @@ if ! uci -q get network.ovpnserver >/dev/null; then
 		set network.ovpnserver.topology='subnet'
 		set network.ovpnserver.server='10.8.0.0 255.255.255.0'
 		set network.ovpnserver.config='/etc/openvpn-server/server.conf'
-		add_list network.ovpnserver.push='route 10.10.10.0 255.255.255.0'
-		commit network
+		add_list network.ovpnserver.push='route 192.168.1.0 255.255.255.0'
+		add_list network.ovpnserver.push='redirect-gateway def1 bypass-dhcp'
 	UCI
+	add_lan_push_defaults
+	uci commit network
 fi
 [ "$(uci -q get network.ovpnserver.proto)" = openvpn ] || exit 1
 # Install only our own sections. WAN input is enabled together with the server.
