@@ -77,6 +77,7 @@ return view.extend({
 		const output = E('div', { id: 'a6-at-output' });
 		const ready = E('span', { id: 'a6-at-ready' }, _('就绪，输入命令或点上面的快捷按钮。'));
 		const command = common.wideInput('a6-at-command', 'AT+CESQ', { placeholder: 'AT+...', maxlength: 512 });
+		command.style.width = '100%';
 		const input = command.querySelector('input');
 		input.setAttribute('aria-describedby', 'a6-at-warning');
 		input.addEventListener('keydown', ev => { if (ev.key === 'Enter') this.handleRun(); });
@@ -85,9 +86,9 @@ return view.extend({
 		return E('div', { 'class': 'cbi-map a6-page' }, [
 			E('h2', {}, _('AT 终端')), common.navigation('terminal'),
 			common.section(_('发送命令'), [
-				common.field(_('AT 命令'), [
-					command, common.actions([E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(this, 'handleRun') }, _('执行'))])
-				], 'a6-at-command', warning),
+				common.field(_('AT 命令'), common.actions([
+					command, E('button', { 'class': 'cbi-button cbi-button-action', click: ui.createHandlerFn(this, 'handleRun') }, _('执行'))
+				]), 'a6-at-command', warning),
 				common.field(_('快捷命令'), common.actions(QUICK.map(item => E('button', {
 					'class': 'cbi-button', 'data-cmd': item[0], title: item[0],
 					click: ui.createHandlerFn(this, 'handleQuick')

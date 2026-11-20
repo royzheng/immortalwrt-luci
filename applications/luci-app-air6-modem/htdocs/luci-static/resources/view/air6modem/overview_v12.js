@@ -118,7 +118,7 @@ return view.extend({
 	load() { return callStatus(); },
 
 	render(data) {
-		const raw = E('div', { 'class': 'cbi-section-node' });
+		const raw = E('div');
 		let pending;
 		const refreshCells = () => {
 			if (!details.open) return Promise.resolve();
@@ -126,7 +126,7 @@ return view.extend({
 				raw.textContent = _('读取中…');
 				pending = callCells(true).then(c => {
 					raw.replaceChildren(...[['AT+ECELL', c.serving], ['AT+EINFO?', c.engineering]].map(([command, r]) =>
-						common.field(command, common.raw(common.resultText(r)))));
+						E('div', {}, [E('strong', {}, command), common.diagnosticText(common.resultText(r))])));
 				}).catch(err => { raw.textContent = _('小区读取失败：') + err.message; })
 					.finally(() => { pending = null; });
 			}
@@ -134,7 +134,7 @@ return view.extend({
 		};
 		const details = E('details', { toggle: refreshCells }, [
 			E('summary', {}, _('查看 AT 原始返回')),
-			E('p', { 'class': 'cbi-section-descr' }, _('AT+ECELL 查询服务小区和邻区测量，AT+EINFO? 查询工程信息设置。')),
+			E('div', {}, _('AT+ECELL 查询服务小区和邻区测量，AT+EINFO? 查询工程信息设置。')),
 			raw
 		]);
 
@@ -174,7 +174,7 @@ return view.extend({
 				[ 'IMEI', datum('a6-imei') ], [ 'IMSI', datum('a6-imsi') ], [ 'ICCID', datum('a6-iccid') ],
 				[ _('SIM 状态'), datum('a6-sim-state') ]
 			])),
-			common.section(_('工程诊断'), details),
+			common.section(_('工程诊断'), null, details),
 			E('div', { id: 'a6-poll-error', role: 'status' })
 		]);
 

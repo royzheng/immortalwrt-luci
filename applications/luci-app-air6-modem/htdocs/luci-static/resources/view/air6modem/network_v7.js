@@ -58,7 +58,7 @@ function stateView(data, n) {
 }
 
 function engineering(data) {
-	return [data?.status, data?.config].map(value => common.raw(value || '–'));
+	return [data?.status, data?.config].map(value => common.diagnosticText(value || '–'));
 }
 
 return view.extend({
@@ -151,7 +151,7 @@ return view.extend({
 			]),
 			common.section(_('首选网络制式'), mode.control(preferred)),
 			common.section(_('操作结果'), output),
-			common.section(_('工程信息'), E('details', {}, [
+			common.section(_('工程信息'), null, E('details', {}, [
 				E('summary', {}, _('查看接口状态与配置原文')),
 				raw
 			]))

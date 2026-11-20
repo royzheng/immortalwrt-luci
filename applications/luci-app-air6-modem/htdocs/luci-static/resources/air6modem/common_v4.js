@@ -19,8 +19,7 @@ return baseclass.extend({
 				E('a', { href: L.url('admin', 'air6modem', key), 'aria-current': key === active ? 'page' : null }, title))));
 	},
 	actions(items) {
-		const toolbar = items.every(item => item.tagName === 'BUTTON');
-		return E('p', toolbar ? { 'class': 'button-row', style: 'justify-content: flex-start; padding-inline: 0' } : {}, items.flatMap((item, i) => i ? [' ', item] : [item]));
+		return E('div', { 'class': 'control-group', style: 'display: flex; align-items: center' }, items);
 	},
 	wideInput(id, value, options) {
 		const widget = new ui.Textfield(value, options).render();
@@ -39,16 +38,25 @@ return baseclass.extend({
 	section(title, body, description) {
 		const children = [ E('h3', {}, title) ];
 		if (description) children.push(E('div', { 'class': 'cbi-section-descr' }, description));
-		children.push(E('div', { 'class': 'cbi-section-node' }, body));
+		if (body) {
+			const node = E('div', { 'class': 'cbi-section-node' }, body);
+			if (node.lastElementChild?.querySelector(':scope > .cbi-value-field > .control-group'))
+				node.style.paddingBlockEnd = '1rem';
+			children.push(node);
+		}
 		return E('section', { 'class': 'cbi-section' }, children);
 	},
 	field(title, content, id, description) {
 		const field = E('div', { 'class': 'cbi-value-field' }, Array.isArray(content) ? content : [content]);
 		if (description) field.appendChild(E('div', { 'class': 'cbi-value-description' }, description));
-		return E('div', { 'class': 'cbi-value' }, [
+		const actionRow = field.firstElementChild?.classList.contains('control-group');
+		return E('div', { 'class': 'cbi-value', style: actionRow ? 'align-items: baseline' : null }, [
 			id ? E('label', { 'class': 'cbi-value-title', 'for': id }, title) : E('div', { 'class': 'cbi-value-title' }, title),
 			field
 		]);
+	},
+	diagnosticText(value) {
+		return E('pre', { style: 'white-space: pre-wrap; overflow-wrap: anywhere' }, [value]);
 	},
 	raw(value, id) {
 		return E('pre', { id, 'class': 'command-output', style: 'overflow: auto; max-height: 32em' }, [value]);
