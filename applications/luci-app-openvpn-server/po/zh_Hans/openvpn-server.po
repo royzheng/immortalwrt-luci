@@ -127,11 +127,11 @@ msgstr "每行填写一条推送配置。例如用 route 192.168.10.0 255.255.25
 msgid "Enter a single unquoted OpenVPN push option."
 msgstr "每行填写一条不带引号的 OpenVPN 推送配置。"
 
-msgid "Edit client options"
-msgstr "编辑客户端附加配置"
+msgid "Add client setting"
+msgstr "添加客户端推送配置"
 
-msgid "The client options changed. Reopen the editor to load the latest copy."
-msgstr "客户端附加配置已被修改，请重新打开编辑器读取最新内容。"
+msgid "The client options changed. Reload the page to load the latest copy."
+msgstr "客户端附加配置已被修改，请重新加载页面读取最新内容。"
 
 msgid "Unable to save the client options."
 msgstr "无法保存客户端附加配置。"
