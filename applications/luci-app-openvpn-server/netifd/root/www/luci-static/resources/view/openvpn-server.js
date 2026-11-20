@@ -11,8 +11,45 @@ const instance = 'ovpnserver';
 const rule = 'ovpnsrv_in';
 const getStatus = rpc.declare({ object: 'network.interface.ovpnserver', method: 'status', expect: {}, reject: true });
 
-async function runHelper(path) {
-	const result = await fs.exec(path);
+const addonPath = '/etc/openvpn-addon.conf';
+const saveAddon = rpc.declare({
+	object: 'luci.openvpn-server', method: 'saveAddon', params: ['previous', 'content'], reject: true
+});
+
+function showError(err) {
+	ui.addNotification(null, E('p', {}, [err.message]), 'error');
+}
+
+async function editAddon() {
+	const previous = await fs.read(addonPath).catch(err => {
+		if (err.name === 'NotFoundError') return '';
+		throw err;
+	});
+	const editor = new ui.Textarea(previous, { rows: 12, monospace: true });
+	ui.showModal(_('Special Code'), [
+		E('p', {}, _('(!)Special Code you know that add in to client .ovpn file')),
+		editor.render(),
+		E('div', { 'class': 'right' }, [
+			E('button', { 'class': 'btn', 'click': ui.hideModal }, _('Cancel')),
+			' ',
+			E('button', { 'class': 'btn cbi-button-save', 'click': ui.createHandlerFn(null, async () => {
+				const value = editor.getValue().replace(/\r\n?/g, '\n');
+				try {
+					const result = await saveAddon(previous, value);
+					if (result.error === 'changed')
+						throw new Error(_('The client options changed. Reopen the editor to load the latest copy.'));
+					if (result.error)
+						throw new Error(_('Unable to save the client options.'));
+					ui.hideModal();
+				}
+				catch (err) { showError(err); }
+			}) }, _('Save'))
+		])
+	]);
+}
+
+async function runHelper(path, args) {
+	const result = await fs.exec(path, args);
 	if (result.code !== 0)
 		throw new Error(_('The operation failed. Check the server address and certificates.'));
 	return result.stdout || '';
@@ -62,6 +99,27 @@ return view.extend({
 		subnet.placeholder = '10.8.0.0 255.255.255.0';
 		subnet.rmempty = false;
 
+		const push = section.option(form.DynamicList, 'push', _('Client Settings'),
+			_('Enter one option per row, for example route 192.168.10.0 255.255.255.0 or dhcp-option DNS 192.168.10.1.'));
+		push.validate = (sid, value) => /[\x00-\x1f\x7f'"\\,]|--/.test(value)
+			? _('Enter a single unquoted OpenVPN push option.') : true;
+
+		const options = section.option(form.Button, '_addon', _('Special Code'));
+		options.inputtitle = _('Edit client options');
+		options.onclick = () => editAddon().catch(showError);
+
+		const renew = section.option(form.Button, '_rotate', _('Renew OpenVPN certificate files'));
+		renew.inputtitle = _('Renew');
+		renew.onclick = async () => {
+			if (!window.confirm(_('Replace the CA, server and client certificates? Connected clients will disconnect. Download and import a new .ovpn file on each client.')))
+				return;
+			try {
+				await runHelper('/etc/openvpn/renewcert.sh', ['--rotate']);
+				ui.addNotification(null, E('p', {}, _('Certificates replaced. Download the new client profile.')), 'info');
+			}
+			catch (err) { showError(err); }
+		};
+
 		const download = section.option(form.Button, '_download', _('OpenVPN Client config file'),
 			_('Apply the public address and port before downloading the client profile.'));
 		download.inputtitle = _('Download .ovpn file');
@@ -76,7 +134,7 @@ return view.extend({
 				a.remove();
 				setTimeout(() => URL.revokeObjectURL(url), 1000);
 			}
-			catch (e) { ui.addNotification(null, E('p', {}, [e.message]), 'error'); }
+			catch (err) { showError(err); }
 		};
 
 		const parse = m.parse.bind(m);

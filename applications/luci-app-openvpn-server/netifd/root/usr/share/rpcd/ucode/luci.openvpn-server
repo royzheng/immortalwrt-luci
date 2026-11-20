@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: Apache-2.0
+import { readfile, lstat, open, rename, unlink } from 'fs';
+
+const path = '/etc/openvpn-addon.conf';
+
+return {
+	'luci.openvpn-server': {
+		saveAddon: {
+			args: { previous: '', content: '' },
+			call: function(req) {
+				const { previous, content } = req.args;
+				if (previous == null || content == null)
+					return { error: 'invalid' };
+				const stored = readfile(path);
+				if (stored == null && lstat(path))
+					return { error: 'read' };
+				if ((stored ?? '') !== previous)
+					return { error: 'changed' };
+
+				// rpcd invokes this synchronous handler serially. Publish complete files only.
+				const tmp = path + '.new';
+				const fd = open(tmp, 'w', 0600);
+				if (!fd)
+					return { error: 'write' };
+				const complete = fd.write(content) == length(content);
+				if (!fd.close() || !complete || !rename(tmp, path)) {
+					unlink(tmp);
+					return { error: 'write' };
+				}
+				return {};
+			}
+		}
+	}
+};

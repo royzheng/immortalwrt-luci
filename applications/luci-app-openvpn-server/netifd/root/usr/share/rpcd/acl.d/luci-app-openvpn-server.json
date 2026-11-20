@@ -9,6 +9,14 @@
 			"ubus": {
 				"network.interface.ovpnserver": [
 					"status"
+				],
+				"file": [
+					"read"
+				]
+			},
+			"file": {
+				"/etc/openvpn-addon.conf": [
+					"read"
 				]
 			}
 		},
@@ -20,6 +28,9 @@
 			"ubus": {
 				"file": [
 					"exec"
+				],
+				"luci.openvpn-server": [
+					"saveAddon"
 				]
 			},
 			"file": {

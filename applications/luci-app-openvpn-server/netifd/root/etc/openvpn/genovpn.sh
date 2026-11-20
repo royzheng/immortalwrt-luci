@@ -2,6 +2,8 @@
 # Only the client identity is exported. Stream it directly to the authenticated request.
 set -eu
 pki=/etc/openvpn-server/pki
+exec 9<"/etc/openvpn-server/.pki.lock"
+flock -s 9
 remote="$(uci -q get network.ovpnserver.ddns)"
 port="$(uci -q get network.ovpnserver.port)"
 case "$remote" in ''|*[!a-zA-Z0-9.:_-]*) exit 1;; esac
