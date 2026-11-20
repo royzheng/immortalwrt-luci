@@ -1,0 +1,15 @@
+{
+	"luci-design-config": {
+		"description": "Manage Design theme preferences",
+		"read": {
+			"uci": [
+				"design"
+			]
+		},
+		"write": {
+			"uci": [
+				"design"
+			]
+		}
+	}
+}

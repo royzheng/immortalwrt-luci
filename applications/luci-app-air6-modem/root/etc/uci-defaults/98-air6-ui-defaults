@@ -1,8 +1,13 @@
 #!/bin/sh
 [ "$PKG_UPGRADE" = "1" ] && exit 0
 uci set luci.main.lang='zh_cn'
-if [ -d /www/luci-static/argon ]; then
-    uci set luci.main.mediaurlbase='/luci-static/argon'
-fi
+for theme in Bootstrap BootstrapLight BootstrapDark Material MaterialLight MaterialDark; do
+    path="$(uci -q get "luci.themes.$theme")" || continue
+    [ -d "/www$path" ] || uci -q delete "luci.themes.$theme"
+done
+case "$(uci -q get luci.main.mediaurlbase)" in
+    /luci-static/design) [ -d /www/luci-static/design ] || uci set luci.main.mediaurlbase='/luci-static/argon' ;;
+    *) [ ! -d /www/luci-static/argon ] || uci set luci.main.mediaurlbase='/luci-static/argon' ;;
+esac
 uci commit luci
 exit 0

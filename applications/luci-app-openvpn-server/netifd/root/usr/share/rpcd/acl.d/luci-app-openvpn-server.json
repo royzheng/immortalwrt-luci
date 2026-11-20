@@ -1,0 +1,35 @@
+{
+	"luci-app-openvpn-server": {
+		"description": "Manage the OpenVPN server interface",
+		"read": {
+			"uci": [
+				"network",
+				"firewall"
+			],
+			"ubus": {
+				"network.interface.ovpnserver": [
+					"status"
+				]
+			}
+		},
+		"write": {
+			"uci": [
+				"network",
+				"firewall"
+			],
+			"ubus": {
+				"file": [
+					"exec"
+				]
+			},
+			"file": {
+				"/etc/openvpn/genovpn.sh": [
+					"exec"
+				],
+				"/etc/openvpn/renewcert.sh": [
+					"exec"
+				]
+			}
+		}
+	}
+}

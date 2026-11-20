@@ -6,5 +6,25 @@
 			"module": "luci.controller.design_theme",
 			"function": "menu_flush"
 		}
+	},
+	"admin/system/design-config": {
+		"title": "Design Theme Settings",
+		"order": 90,
+		"action": {
+			"type": "view",
+			"path": "design-config"
+		},
+		"depends": {
+			"acl": [
+				"luci-design-config"
+			],
+			"uci": {
+				"luci": {
+					"main": {
+						"mediaurlbase": "/luci-static/design"
+					}
+				}
+			}
+		}
 	}
 }

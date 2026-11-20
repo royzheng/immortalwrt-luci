@@ -102,3 +102,21 @@ msgstr "特殊代码"
 #: applications/luci-app-openvpn-server/luasrc/model/cbi/openvpn-server/openvpn-server.lua:63
 msgid "(!)Special Code you know that add in to client .ovpn file"
 msgstr "(!)特殊代码将自动合并到客户端的 .ovpn 配置文件中"
+
+msgid "The operation failed. Check the server address and certificates."
+msgstr "操作失败，请检查服务端地址和证书。"
+
+msgid "Starting…"
+msgstr "启动中…"
+
+msgid "Status unavailable"
+msgstr "未能读取状态"
+
+msgid "Enable OpenVPN server"
+msgstr "启用 OpenVPN 服务端"
+
+msgid "Apply the public address and port before downloading the client profile."
+msgstr "请先保存并应用公网地址和端口，再下载客户端配置。"
+
+msgid "The OpenVPN server interface or firewall rule is missing."
+msgstr "缺少 OpenVPN 服务端接口或防火墙规则。"

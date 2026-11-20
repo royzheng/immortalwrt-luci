@@ -1,0 +1,4 @@
+config global 'theme'
+	option mode 'normal'
+	option navbar 'display'
+	option navbar_proxy 'auto'

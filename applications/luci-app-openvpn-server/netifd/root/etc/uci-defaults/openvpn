@@ -1,0 +1,51 @@
+#!/bin/sh
+set -e
+# netifd owns this server. Its disabled flag also keeps it down on boot.
+if ! uci -q get network.ovpnserver >/dev/null; then
+	uci -q batch <<-'UCI'
+		set network.ovpnserver=interface
+		set network.ovpnserver.proto='openvpn'
+		set network.ovpnserver.disabled='1'
+		set network.ovpnserver.ovpnproto='udp4'
+		set network.ovpnserver.port='1194'
+		set network.ovpnserver.dev='tun-ovpnsrv'
+		set network.ovpnserver.topology='subnet'
+		set network.ovpnserver.server='10.8.0.0 255.255.255.0'
+		set network.ovpnserver.config='/etc/openvpn-server/server.conf'
+		add_list network.ovpnserver.push='route 10.10.10.0 255.255.255.0'
+		commit network
+	UCI
+fi
+[ "$(uci -q get network.ovpnserver.proto)" = openvpn ] || exit 1
+# Install only our own sections. WAN input is enabled together with the server.
+if ! uci -q get firewall.ovpnsrv_in >/dev/null; then
+	uci -q batch <<-'UCI'
+		set firewall.ovpnsrv_in=rule
+		set firewall.ovpnsrv_in.name='Allow-OpenVPN-Server'
+		set firewall.ovpnsrv_in.src='wan'
+		set firewall.ovpnsrv_in.target='ACCEPT'
+		set firewall.ovpnsrv_in.proto='udp'
+		set firewall.ovpnsrv_in.dest_port='1194'
+		set firewall.ovpnsrv_in.enabled='0'
+		commit firewall
+	UCI
+fi
+if ! uci -q get firewall.ovpnsrv_zone >/dev/null; then
+	uci -q batch <<-'UCI'
+		set firewall.ovpnsrv_zone=zone
+		set firewall.ovpnsrv_zone.name='ovpnsrv'
+		add_list firewall.ovpnsrv_zone.network='ovpnserver'
+		set firewall.ovpnsrv_zone.input='ACCEPT'
+		set firewall.ovpnsrv_zone.forward='REJECT'
+		set firewall.ovpnsrv_zone.output='ACCEPT'
+		commit firewall
+	UCI
+fi
+if ! uci -q get firewall.ovpnsrv_lan >/dev/null; then
+	uci -q batch <<-'UCI'
+		set firewall.ovpnsrv_lan=forwarding
+		set firewall.ovpnsrv_lan.src='ovpnsrv'
+		set firewall.ovpnsrv_lan.dest='lan'
+		commit firewall
+	UCI
+fi

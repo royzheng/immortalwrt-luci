@@ -1,0 +1,33 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Design Theme Settings"
+msgstr "Design 主题设置"
+
+msgid "Color scheme"
+msgstr "配色模式"
+
+msgid "Follow system"
+msgstr "跟随系统"
+
+msgid "Light"
+msgstr "浅色"
+
+msgid "Dark"
+msgstr "深色"
+
+msgid "Show navigation bar"
+msgstr "显示底部导航栏"
+
+msgid "Navigation bar proxy shortcut"
+msgstr "底栏代理快捷入口"
+
+msgid "The shortcut appears when the selected service is installed."
+msgstr "安装所选服务后，底栏会显示其入口。"
+
+msgid "Automatic"
+msgstr "自动"
+
+msgid "None"
+msgstr "无"

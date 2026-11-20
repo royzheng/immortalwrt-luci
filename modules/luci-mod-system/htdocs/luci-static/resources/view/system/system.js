@@ -39,6 +39,12 @@ const callSetLocaltime = rpc.declare({
 	expect: { result: 0 }
 });
 
+const callNtpDefaults = rpc.declare({
+	object: 'luci-rpc',
+	method: 'getBoardJSON',
+	filter: board => board?.system?.ntpserver
+});
+
 const callTimezone = rpc.declare({
 	object: 'luci',
 	method: 'getTimezones',
@@ -96,12 +102,13 @@ return view.extend({
 			callRcList('sysntpd'),
 			callTimezone(),
 			callGetUnixtime(),
+			L.resolveDefault(callNtpDefaults(), null),
 			uci.load('luci'),
 			uci.load('system')
 		]);
 	},
 
-	render([ntpd_enabled, timezones, unixtime]) {
+	render([ntpd_enabled, timezones, unixtime, boardServers]) {
 		let m, s, o;
 
 		m = new form.Map('system',
@@ -257,7 +264,7 @@ return view.extend({
 		 */
 
 		if (L.hasSystemFeature('sysntpd')) {
-			var default_servers = [
+			const default_servers = Array.isArray(boardServers) && boardServers.length ? boardServers : [
 				'0.openwrt.pool.ntp.org', '1.openwrt.pool.ntp.org',
 				'2.openwrt.pool.ntp.org', '3.openwrt.pool.ntp.org'
 			];

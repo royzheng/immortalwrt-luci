@@ -364,7 +364,7 @@ function build_pagetree() {
 	let cachefile;
 
 	if (indexcache) {
-		cachefile = sprintf('%s.%08x.json', indexcache, hash_filelist(files));
+		cachefile = sprintf('%s.%08x.json', indexcache, hash(uci.get('luci', 'main', 'mediaurlbase') ?? '', hash_filelist(files)));
 
 		let res = read_cachefile(cachefile, read_jsonfile);
 

@@ -10,6 +10,7 @@
 
 {%
 	import { access } from 'fs';
+	import { cursor } from 'uci';
 	import { getuid, getspnam } from 'luci.core';
 
 	const boardinfo = ubus.call('system', 'board');
@@ -18,10 +19,14 @@
 	const request_path = ctx.request_path ?? dispatch_path;
 	const current_path = length(dispatch_path) ? join('-', dispatch_path) : 'main-login';
 	const current_page = length(request_path) ? join('-', request_path) : current_path;
+	const cfg = cursor();
+	const mode = cfg.get_first('design', 'global', 'mode') ?? 'normal';
+	const navbar = cfg.get_first('design', 'global', 'navbar') != 'close';
+	const proxy = cfg.get_first('design', 'global', 'navbar_proxy') ?? 'auto';
 	const show_proxy_icon = access('/etc/config/shadowsocksr') || access('/etc/config/google_fu_mode');
 	const show_openclash_icon = access('/etc/config/openclash');
 	const show_homeproxy_icon = access('/etc/config/homeproxy');
-	const theme_rev = `${version?.luciversion ?? 'dev'}-designfix-20260927`;
+	const theme_rev = `${version?.luciversion ?? 'dev'}-design-20261120`;
 
 	http.prepare_content('text/html; charset=UTF-8');
 -%}
@@ -52,6 +57,7 @@
 <meta name="apple-touch-fullscreen" content="yes">
 <meta name="msapplication-TileColor" content="#09c">
 <link rel="stylesheet" href="{{ media }}/css/style.css?v={{ theme_rev }}">
+{% if (mode != 'light'): %}<link rel="stylesheet" href="{{ media }}/css/dark.css?v={{ theme_rev }}" media="{{ mode == 'dark' ? 'all' : '(prefers-color-scheme: dark)' }}">{% endif %}
 <script src="{{ media }}/js/jquery.min.js?v=3.5.1"></script>
 <script src="{{ media }}/js/compat.js?v={{ theme_rev }}"></script>
 <link rel="shortcut icon" href="{{ media }}/favicon.ico">
@@ -75,19 +81,21 @@
 	</div>
 </header>
 
+{% if (navbar): %}
 <div class="navbar">
 	<a href="{{ dispatcher.build_url('admin/status/overview') }}"><img src="{{ media }}/images/home.png"></a>
-	{% if (show_proxy_icon): %}
+	{% if (show_proxy_icon && proxy in ['auto', 'shadowsocksr']): %}
 	<a href="{{ dispatcher.build_url('admin/services/shadowsocksr') }}"><img src="{{ media }}/images/ssr.png"></a>
-	{% elif (show_homeproxy_icon): %}
+	{% elif (show_homeproxy_icon && proxy in ['auto', 'homeproxy']): %}
 	<a href="{{ dispatcher.build_url('admin/services/homeproxy') }}" title="HomeProxy"><img src="{{ media }}/images/homeproxy.svg" alt="HomeProxy"></a>
-	{% elif (show_openclash_icon): %}
+	{% elif (show_openclash_icon && proxy in ['auto', 'openclash']): %}
 	<a href="{{ dispatcher.build_url('admin/services/openclash') }}" title="OpenClash"><img src="{{ media }}/images/openclash.png" alt="OpenClash"></a>
 	{% endif %}
 	<a href="{{ dispatcher.build_url('admin/network/network') }}"><img src="{{ media }}/images/link.png"></a>
 	<a href="{{ dispatcher.build_url('admin/status/realtime') }}"><img src="{{ media }}/images/rank.png"></a>
 	<a href="{{ dispatcher.build_url('admin/system/admin') }}"><img src="{{ media }}/images/user.png"></a>
 </div>
+{% endif %}
 
 <div class="main">
 	<div class="loading"><span><div class="loading-img"></div>{{ _('Collecting data...') }}</span></div>

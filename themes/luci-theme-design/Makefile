@@ -9,10 +9,14 @@ LUCI_TITLE:=Design Theme
 LUCI_DEPENDS:=
 PKG_LICENSE:=Apache-2.0
 PKG_VERSION:=7.1
-PKG_RELEASE:=20261015
+PKG_RELEASE:=20261120
 
 LUCI_MINIFY_CSS:=
 CONFIG_LUCI_CSSTIDY:=
+
+define Package/luci-theme-design/conffiles
+/etc/config/design
+endef
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
