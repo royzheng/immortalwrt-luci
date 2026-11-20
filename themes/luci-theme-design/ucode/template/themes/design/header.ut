@@ -64,7 +64,7 @@
 {% if (node?.css): %}
 <link rel="stylesheet" href="{{ resource }}/{{ node.css }}">
 {% endif %}
-<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
+<script src="{{ type(translations_url) == 'function' ? translations_url() : dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
 <script src="{{ resource }}/cbi.js?v={{ theme_rev }}"></script>
 {% if (css): %}
 <style title="text/css">{{ css }}</style>

@@ -629,6 +629,9 @@ void lmo_close_catalog(const char *lang)
 				lmo_close(ar);
 			}
 
+			if (_lmo_active_catalog == cat)
+				_lmo_active_catalog = NULL;
+
 			free(cat);
 			break;
 		}

@@ -1,7 +1,7 @@
 // Copyright 2022 Jo-Philipp Wich <jo@mein.io>
 // Licensed to the public under the Apache License 2.0.
 
-import { load_catalog, change_catalog, get_translations } from 'luci.core';
+import { dictionary } from 'luci.translations';
 
 const ubus_types = [
 	null,
@@ -122,17 +122,28 @@ return {
 	},
 
 	action_translations: function(reqlang) {
-		if (reqlang != null && reqlang != dispatcher.lang) {
-			load_catalog(reqlang, '/usr/lib/lua/luci/i18n');
-			change_catalog(reqlang);
+		const catalog = dictionary(reqlang ?? dispatcher.lang, true);
+		const etag = '"' + catalog.version + '"';
+		const immutable = http.formvalue('v') == catalog.version;
+
+		http.header('Cache-Control', immutable ? 'private, max-age=31536000, immutable' : 'private, no-cache');
+		http.header('ETag', etag);
+		http.prepare_content('application/javascript; charset=UTF-8');
+
+		const validators = split(http.getenv('HTTP_IF_NONE_MATCH') ?? http.getenv('headers')?.['if-none-match'] ?? '', ',');
+		for (let value in validators) {
+			const tag = trim(value);
+			if (tag == '*' || tag == etag || tag == 'W/' + etag) {
+				const method = http.getenv('REQUEST_METHOD');
+				if (method == 'GET' || method == 'HEAD')
+					http.status(304, 'Not Modified');
+				else
+					http.status(412, 'Precondition Failed');
+				return;
+			}
 		}
 
-		http.prepare_content('application/javascript; charset=UTF-8');
-		http.write('window.TR={');
-
-		get_translations((key, val) => http.write(sprintf('"%08x":%J,', key, val)));
-
-		http.write('};');
+		http.write(catalog.body);
 	},
 
 	action_logout: function() {

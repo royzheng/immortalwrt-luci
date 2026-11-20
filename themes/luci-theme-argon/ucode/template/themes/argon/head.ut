@@ -120,7 +120,7 @@
 	</style>
 	{% endif -%}
 	{% if (!is_login): %}
-	<script src="{{ dispatcher.build_url('admin/translations', dispatcher.lang) }}?v={{ version.luciversion }}"></script>
+	<script src="{{ type(translations_url) == 'function' ? translations_url() : dispatcher.build_url('admin/translations', dispatcher.lang) }}"></script>
 	<script src="{{ resource }}/cbi.js?v={{ version.luciversion }}"></script>
 	<script src="{{ resource }}/luci.js?v={{ version.luciversion }}"></script>
 	{% endif %}

@@ -20,6 +20,7 @@ LUCI_DEPENDS:=\
 	+rpcd-mod-ucode \
 	+cgi-io \
 	+ucode \
+	+ucode-mod-digest \
 	+ucode-mod-fs \
 	+ucode-mod-log \
 	+ucode-mod-uci \

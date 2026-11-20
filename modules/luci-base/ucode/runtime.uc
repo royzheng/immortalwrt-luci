@@ -3,6 +3,7 @@
 
 import { access, basename, stat } from 'fs';
 import { cursor } from 'uci';
+import { translations_url } from 'luci.translations';
 
 const template_directory = '/usr/share/ucode/luci/template';
 
@@ -180,6 +181,7 @@ export default function(env) {
 	self.env.theme = basename(media);
 	self.env.resource = uci.get('luci', 'main', 'resourcebase');
 	self.env.pkgs_update_time = stat('/lib/apk/db/installed')?.mtime ?? stat('/usr/lib/opkg/status')?.mtime ?? 0;
+	self.env.translations_url = () => translations_url(self.env.dispatcher);
 	self.env.include = (...args) => self.render_any(...args);
 
 	return self;
