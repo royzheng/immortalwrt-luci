@@ -116,7 +116,11 @@ function getProtocolHandlers() {
 
 		Object.assign(_protospecs, protos);
 
-		return Promise.all(Object.keys(protos).map(function(p) {
+		// Older templates and non-local resource paths may not supply a module list.
+		const installed = L.env.protocol_modules;
+		const modules = Object.keys(protos).filter(p => !Array.isArray(installed) || installed.includes(p));
+
+		return Promise.all(modules.map(function(p) {
 			return Promise.resolve(L.require('protocol.%s'.format(p))).catch(function(err) {
 				if (L.isObject(err) && err.name != 'NetworkError')
 					L.error(err);

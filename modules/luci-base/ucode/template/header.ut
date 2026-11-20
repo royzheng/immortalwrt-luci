@@ -4,7 +4,18 @@
 -#}
 
 {%
+	import { lsdir, stat } from 'fs';
+
 	include(`themes/${theme}/header`);
+
+	const documentroot = http.getenv("DOCUMENT_ROOT");
+	const resource_dir = `${documentroot}${resource}`;
+	const protocol_dir = `${resource_dir}/protocol`;
+	const protocol_files = lsdir(protocol_dir, '*.js') ??
+		(stat(resource_dir)?.type == 'directory' ? [] : null);
+	const protocol_modules = protocol_files == null ? null : map(
+		filter(protocol_files, name => stat(`${protocol_dir}/${name}`)?.type == 'file'),
+		name => substr(name, 0, -3));
 -%}
 
 <script src="{{ resource }}/luci.js?v={# PKG_VERSION #}-{{ pkgs_update_time }}"></script>
@@ -14,7 +25,8 @@
 		resource       : resource,
 		scriptname     : http.getenv("SCRIPT_NAME"),
 		pathinfo       : http.getenv("PATH_INFO"),
-		documentroot   : http.getenv("DOCUMENT_ROOT"),
+		documentroot   : documentroot,
+		protocol_modules: protocol_modules,
 		requestpath    : ctx.request_path,
 		dispatchpath   : ctx.path,
 		pollinterval   : +config.main.pollinterval || 5,
